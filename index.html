@@ -15,17 +15,25 @@
 <script src="sstv.js"></script><script>
 const file=document.getElementById('file'),canvas=document.getElementById('preview'),ctx=canvas.getContext('2d',{willReadFrequently:true}),button=document.getElementById('generate'),status=document.getElementById('status'),progress=document.getElementById('progress'),output=document.getElementById('output'),player=document.getElementById('player'),download=document.getElementById('download');
 let url;
+let imageSelection = 0;
 file.addEventListener('change',async()=>{
- button.disabled=true;output.classList.add('hidden');
- const f=file.files[0];if(!f)return;
- try{const image=await createImageBitmap(f);ctx.fillStyle='#000';ctx.fillRect(0,0,320,256);
+ const selection = ++imageSelection;
+ button.disabled=true;output.classList.add('hidden');progress.classList.add('hidden');
+ const f=file.files[0];
+ if (!f) { status.textContent='Choose an image to begin.'; return; }
+ status.textContent='Opening image...';
+ try{const image=await createImageBitmap(f);
+ if (selection !== imageSelection) { image.close(); return; }
+ ctx.fillStyle='#000';ctx.fillRect(0,0,320,256);
  const scale=Math.min(320/image.width,256/image.height),w=image.width*scale,h=image.height*scale;
  ctx.drawImage(image,(320-w)/2,(256-h)/2,w,h);image.close();button.disabled=false;status.textContent='Ready to encode.';
- }catch(e){status.textContent='Could not open image: '+e.message;}
+ }catch(e){if (selection === imageSelection) status.textContent='Could not open image: '+e.message;}
 });
 button.addEventListener('click',async()=>{
+ const selection = imageSelection;
  button.disabled=true;output.classList.add('hidden');progress.classList.remove('hidden');progress.value=0;status.textContent='Encoding SSTV...';
  await new Promise(resolve=>setTimeout(resolve,30));
+ if (selection !== imageSelection) return;
  try{const pcm=SSTV.encode(ctx.getImageData(0,0,320,256),v=>{progress.value=Math.round(v*100)});
  const blob=SSTV.wavBlob(pcm);if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(blob);
  player.src=url;download.href=url;output.classList.remove('hidden');status.textContent='Done! Play the WAV and let Robot36 listen. Duration: '+(pcm.length/SSTV.RATE).toFixed(1)+' seconds.';
